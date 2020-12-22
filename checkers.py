@@ -5,7 +5,10 @@ row_length = 8
 column_length = 8
 
 turn = 0  # 0 is white 1 is black
-command_list = []
+
+move_history = []
+has_jumped = False
+
 num_to_az = {
     1: "A",
     2: "B",
@@ -77,8 +80,7 @@ board_data = default_board
 
 # Print
 def print_header():
-    for spaces in range(0, grid_length + 1):
-        print("_", end="")
+    print("_" * (grid_length + 1), end="")
 
     # if there is two digits then print 2 "_" in between each letter
     # else print 1 digit
@@ -93,9 +95,7 @@ def print_header():
 
 
 def print_footer():
-    for spaces in range(0, grid_length + 1 + (board_data.num_columns * 3)):
-        print("_", end="")
-    print("\n", end="")
+    print("_" * (grid_length + 1 + (board_data.num_columns * 3)))
 
 
 def print_board(board_dict):
@@ -208,6 +208,8 @@ def check_piece(icon):
 
 def interpret_move(_move):
     global turn
+    global has_jumped
+    global move_history
 
     # if the move isn't long enough length to be the right command send error
     if len(_move) != 5:
@@ -302,12 +304,16 @@ def interpret_move(_move):
                             current_board[middle_row][middle_column] = "1"
                             # give player another turn to double jump
                             turn = (turn + 1) % 2
+                            has_jumped = True
 
                 # King them if they're on the last row of opposing side
                 if second_move[0] == "A" and start_icon == "b":
                     current_board[second_move[0]][int(second_move[1]) - 1] = "B"
                     current_board[first_move[0]][int(first_move[1]) - 1] = "1"
                     turn = (turn + 1) % 2
+
+                    # save move to move_history
+                    move_history.append(first_move + second_move)
                     return
                 elif (
                     second_move[0] == chr(ord("A") + board_data.num_rows - 1)
@@ -316,6 +322,9 @@ def interpret_move(_move):
                     current_board[second_move[0]][int(second_move[1]) - 1] = "W"
                     current_board[first_move[0]][int(first_move[1]) - 1] = "1"
                     turn = (turn + 1) % 2
+
+                    # save move to move_history
+                    move_history.append(first_move + second_move)
                     return
                 else:
                     # set the moved to square as having a piece
