@@ -1,10 +1,11 @@
-import PySimpleGUI as sg
-
-# TODO: Do Checker logic. jumping, kinging
+# TODO: proper double jump logic
 
 grid_length = 3  # How many chars until you reach the actual board
 row_length = 8
 column_length = 8
+
+turn = 0  # 0 is white 1 is black
+command_list = []
 num_to_az = {
     1: "A",
     2: "B",
@@ -34,9 +35,11 @@ num_to_az = {
     26: "Z",
 }
 
+
 current_board = {
     # "A": [],  # A is the row, then the elements+1 in the list will be the column
 }
+
 
 class BoardData:
     def __init__(self, rows, columns, outside_size):
@@ -46,6 +49,7 @@ class BoardData:
         self.even_row = ""
         self.odd_row = ""
         self.possible_board_icons = ["1", "0", "B", "W", "b", "w"]
+        self.checkers = ["B", "W", "b", "w"]
         # default odd row "0, 1, 0, 1, 0, 1, 0, 1"
 
         # for even rows
@@ -157,7 +161,7 @@ def place_beginning_checkers():
         current_board[num_to_az[ri]] = new_row
         ri += 1
 
-    return new_checker_board
+    return current_board
 
 
 def get_board():
@@ -174,20 +178,6 @@ def get_board():
     return checker_board
 
 
-# UI
-def play_ui():
-    layout = [
-        [sg.Text("Checkers Program")],
-        [sg.Text("What is your move?"), sg.Input()],
-        [sg.OK(), sg.Cancel()],
-    ]
-
-    window = sg.Window("Checker board", layout)
-    event, values = window.read()
-
-    window.close()
-
-
 # Move
 def get_move():
     print("Example Move: A1,B2")
@@ -197,9 +187,18 @@ def get_move():
 
 def check_icon(icon):
     if icon not in board_data.possible_board_icons:
-        print("Bad Command")
         print(
-            f"Expected command to give coordinates to {board_data.possible_board_icons}, and instead got {icon}"
+            f"ERROR: Expected command to give coordinates to {board_data.possible_board_icons}, and instead got {icon}"
+        )
+        get_move()
+        return False
+    return True
+
+
+def check_piece(icon):
+    if icon not in board_data.checkers:
+        print(
+            f"ERROR: Expected command to give coordinates to {board_data.checkers}, and instead got {icon}"
         )
         get_move()
         return False
@@ -208,6 +207,8 @@ def check_icon(icon):
 
 
 def interpret_move(_move):
+    global turn
+
     # if the move isn't long enough length to be the right command send error
     if len(_move) != 5:
         print(f"ERROR: expected 5 characters not {len(_move)}")
@@ -227,8 +228,9 @@ def interpret_move(_move):
         start_col = int(first_move[1]) - 1
         start_icon = start_row[start_col]
 
+        print(start_icon)
         # make sure the icon is valid
-        if not check_icon(start_icon):
+        if not check_piece(start_icon):
             print("ERROR: not a valid place to begin your move")
             get_move()
             return
@@ -239,19 +241,92 @@ def interpret_move(_move):
             end_col = int(second_move[1]) - 1
             end_icon = end_row[end_col]
 
+            # ERROR CHECKING---------------------------------
+            # if it's black's turn and you move a white piece
+            if start_icon == "w" or start_icon == "W":
+                if turn == 1:
+                    print("ERROR: you tried to move a white piece on blacks turn")
+                    get_move()
+                    return
+
+            # if it's white's turn and you move a black piece
+            if start_icon == "b" or start_icon == "B":
+                if turn == 0:
+                    print("ERROR: you tried to move a Black piece on Whites turn")
+                    get_move()
+                    return
+
+            # Don't allow backwards moves
+            if start_icon == "w":
+                if ord(str(_move[0])) - ord(str(_move[3])) > 0:
+                    print("ERROR: Can't move backwards without a King")
+                    get_move()
+
+            # Don't allow backwards moves
+            if start_icon == "b":
+                if ord(str(_move[0])) - ord(str(_move[3])) < 0:
+                    print("ERROR: Can't move backwards without a King")
+                    get_move()
+
             # make sure the icon is valid
             if not check_icon(end_icon):
                 print("ERROR: not a valid place to end your move")
                 get_move()
                 return
+            # ERROR CHECKING---------------------------------
 
             # if the place they want to move is open then let them move
             if end_icon == "1":
-                # get the row and column from the second move
-                current_board[second_move[0]][int(second_move[1]) - 1] = start_icon
-                # get the row and column from the first move
-                current_board[first_move[0]][int(first_move[1]) - 1] = "1"
-                print(f"Moving {first_move} to {second_move}")
+                r_jump_size = abs(ord(str(_move[0])) - ord(str(_move[3])))
+                c_jump_size = abs(start_col - end_col)
+
+                # Don't allow jumps farther then one diagonal
+                # get unicode number of string and make sure they're together
+                if c_jump_size > 1 or r_jump_size > 1:
+                    if c_jump_size > 2 or r_jump_size > 2:
+                        print("ERROR: you can only move 1 column at a time")
+                        get_move()
+                        return
+                    if c_jump_size == 2 and r_jump_size == 2:
+                        middle_row = chr(int((abs(ord(_move[0]) + ord(_move[3]))) / 2))
+                        middle_column = int(abs(start_col + end_col) / 2)
+                        middle_icon = current_board[middle_row][middle_column]
+
+                        # if there is no checker then don't allow the jump
+                        if middle_icon == "1" or middle_icon == "0":
+                            print("ERROR: You can only move 1 row at a time")
+                            get_move()
+                            return
+                        else:
+                            # Take piece
+                            current_board[middle_row][middle_column] = "1"
+                            # give player another turn to double jump
+                            turn = (turn + 1) % 2
+
+                # King them if they're on the last row of opposing side
+                if second_move[0] == "A" and start_icon == "b":
+                    current_board[second_move[0]][int(second_move[1]) - 1] = "B"
+                    current_board[first_move[0]][int(first_move[1]) - 1] = "1"
+                    turn = (turn + 1) % 2
+                    return
+                elif (
+                    second_move[0] == chr(ord("A") + board_data.num_rows - 1)
+                    and start_icon == "w"
+                ):
+                    current_board[second_move[0]][int(second_move[1]) - 1] = "W"
+                    current_board[first_move[0]][int(first_move[1]) - 1] = "1"
+                    turn = (turn + 1) % 2
+                    return
+                else:
+                    # set the moved to square as having a piece
+                    current_board[second_move[0]][int(second_move[1]) - 1] = start_icon
+                    # set the first square to blank
+                    current_board[first_move[0]][int(first_move[1]) - 1] = "1"
+                    print(f"Moving {first_move} to {second_move}")
+
+                    # should switch back and forth between 1 and 0
+                    turn = (turn + 1) % 2
+
             else:
                 print("ERROR: End square is occupied")
                 get_move()
@@ -261,11 +336,37 @@ def interpret_move(_move):
         print(current_board)
 
 
+def check_win():
+    num_black = 0
+    num_white = 0
+    for key in current_board:
+        for row in current_board[key]:
+            if "w" in row or "W" in row:
+                num_white += 1
+            if "b" in row or "B" in row:
+                num_black += 1
+
+    if num_black == 0:
+        print("WHITE HAS WON")
+        print(f"White {num_white}, Black {num_black}")
+        return True
+    if num_white == 0:
+        print("BLACK HAS WON")
+        print(f"White {num_white}, Black {num_black}")
+        return True
+
+
+def initialize():
+    place_beginning_checkers()
+    # check for the things
+
+
 # Main
 if __name__ == "__main__":
     # initialize
     game_over = False
-    place_beginning_checkers()
+    current_board = place_beginning_checkers()
     while not game_over:
         print_board(current_board)
         get_move()
+        game_over = check_win()
