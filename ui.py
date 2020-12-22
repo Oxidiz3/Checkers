@@ -1,5 +1,7 @@
 import PySimpleGUI as sg
+
 import checkers
+import checkers_util as cu
 
 # black squares
 bs = sg.Image("images/bs.png", pad=((0, 0), 0))
@@ -50,9 +52,10 @@ def get_input():
         if event == sg.WIN_CLOSED or event == "Cancel":
             break
         if event == "Submit":
-            checkers.row_length = values[0]
-            checkers.column_length = values[1]
-            checkers.starting_color = values["_White"]
+            cu.row_length = values[0]
+            cu.column_length = values[1]
+            # TODO: MAKE SURE THIS WORKS
+            cu.whites_turn = values["_White"]
             break
 
     window.close()
@@ -100,7 +103,7 @@ def load_board():
         [sg.Submit()],
     ]
 
-    left_frame = [board_to_image(checkers.current_board)]
+    left_frame = [board_to_image(checkers.cu.current_board)]
 
     layout = [
         [
@@ -115,8 +118,8 @@ def load_board():
         if event == sg.WIN_CLOSED or event == "Cancel":
             break
         elif event == "Submit":
-            checkers.command_list.append(values["Command"])
-            window["MoveList"].update(checkers.command_list)
+            cu.move_history.append(values["Command"])
+            window["MoveList"].update(cu.move_history)
 
 
 def __main__():
