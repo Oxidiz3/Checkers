@@ -3,10 +3,11 @@ row_length = 8
 column_length = 8
 
 whites_turn = True  # 0 is white 1 is black
+can_jump = False
+game_over = False
 
 move_history = []
-has_jumped = False
-
+possible_jumps = []  # a1,c3
 num_to_az = {
     1: "A",
     2: "B",
@@ -35,6 +36,8 @@ num_to_az = {
     25: "Y",
     26: "Z",
 }
+az_to_num = {c: r for r, c in num_to_az.items()}
+
 current_board = {
     # "A": [],  # A is the row, then the elements+1 in the list will be the column
 }
