@@ -2,8 +2,8 @@
 holds all of the variables and functions that change data from one type to another
 """
 GRID_LENGTH = 3  # How many chars until you reach the actual board
-row_length = 4
-column_length = 4
+row_length = 6
+column_length = 6
 
 whites_turn = True  # 0 is white 1 is black
 can_jump = False

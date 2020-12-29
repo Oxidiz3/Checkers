@@ -13,7 +13,7 @@ board_data = BoardData(cu.row_length, cu.column_length, cu.GRID_LENGTH)
 def print_header():
     """print's top of board"""
 
-    print("CHECKER BOARD by\nPorter Mecham\n" + "_" * (cu.GRID_LENGTH + 1), end="")
+    print("\n\nCHECKER BOARD by\nPorter Mecham\n" + "_" * (cu.GRID_LENGTH + 1), end="")
 
     # if there is two digits then print 2 "_" in between each letter
     # else print 1 digit
@@ -144,7 +144,7 @@ def look_for_possible_jumps_on_board():
     cu.b_possible_jumps.clear()
 
     for row in cu.current_board:
-        for col in range(0, cu.column_length - 1):
+        for col in range(1, cu.column_length + 1):
             coord = str(row) + str(col)
             icon = cu.coord_to_icon(coord)
             if icon in cu.possible_board_pieces:
@@ -208,6 +208,7 @@ def interpret_move(_move: str):
 
     # check for double jump
     if is_jump:
+        board_coords = end_pos[0] + "," + end_pos[1]
         if piece_can_jump(end_pos, start_icon):
             cu.can_jump = True
             print(end_pos, "can jump a piece")
@@ -276,20 +277,6 @@ def errors_in_input(_move: str) -> bool:
         print("ERROR: letter where there should be a number")
         return True
 
-    if piece_can_jump(_move[0:2], cu.coord_to_icon(_move[0:2])):
-        if cu.whites_turn:
-            if _move not in cu.w_possible_jumps:
-                print("You must jump with")
-                for jump in cu.w_possible_jumps:
-                    print(jump)
-                return True
-        else:
-            if _move not in cu.b_possible_jumps:
-                print("You must jump with")
-                for jump in cu.b_possible_jumps:
-                    print(jump)
-                return True
-
     return False
 
 
@@ -313,13 +300,16 @@ def errors_in_move(_move: str, start_icon: str, end_icon: str) -> bool:
         print("ERROR: End square is occupied")
         return True
 
-    # Black Specific Errors --------------------------------
-
     # if it's black's turn and you move a white piece
     if start_icon.lower() == "w":
         if not cu.whites_turn:
             print("ERROR: you tried to move a white piece on blacks turn")
             return True
+        else:
+            # if they aren't jumping and they must jump
+            if len(cu.w_possible_jumps) > 0:
+                if _move not in cu.w_possible_jumps:
+                    return True
 
         # Don't allow backwards moves
         if start_icon == "w":
@@ -329,10 +319,16 @@ def errors_in_move(_move: str, start_icon: str, end_icon: str) -> bool:
 
     # White Specific Errors --------------------------------
     # if it's white's turn and you move a black piece
-    if start_icon.lower == "b":
+    if start_icon.lower() == "b":
         if cu.whites_turn:
             print("ERROR: you tried to move a Black piece on Whites turn")
             return True
+        else:
+            # if they aren't jumping and they must jump
+            if len(cu.b_possible_jumps) > 0:
+                if not cu.whites_turn:
+                    if _move not in cu.b_possible_jumps:
+                        return True
 
         # Don't allow backwards moves
         if start_icon == "b":
@@ -393,7 +389,7 @@ def take_piece(_move):
 
     # change letters to numbers then get average then return to letter
     middle_row = chr(int((abs(ord(_move[0]) + ord(_move[3]))) / 2))
-    middle_column = int(abs(start_col + end_col) / 2)
+    middle_column = int(abs(start_col + end_col) / 2) - 1
     cu.current_board[middle_row][middle_column] = "1"
 
 
@@ -529,10 +525,12 @@ def check_win():
                 num_black += 1
 
     if num_black == 0:
+        print_board()
         print("WHITE HAS WON")
         print(f"White {num_white}, Black {num_black}")
         return True
     if num_white == 0:
+        print_board()
         print("BLACK HAS WON")
         print(f"White {num_white}, Black {num_black}")
         return True
