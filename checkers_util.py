@@ -1,14 +1,21 @@
-grid_length = 3  # How many chars until you reach the actual board
-row_length = 8
-column_length = 8
+"""
+holds all of the variables and functions that change data from one type to another
+"""
+GRID_LENGTH = 3  # How many chars until you reach the actual board
+row_length = 4
+column_length = 4
 
 whites_turn = True  # 0 is white 1 is black
 can_jump = False
 game_over = False
 
 move_history = []
-possible_jumps = []  # a1,c3
-num_to_az = {
+
+w_possible_jumps = []  # a1,c3
+b_possible_jumps = []  # a1,c3
+
+possible_board_pieces = ["w", "W", "b", "B"]
+NUM_TO_AZ = {
     1: "A",
     2: "B",
     3: "C",
@@ -36,7 +43,7 @@ num_to_az = {
     25: "Y",
     26: "Z",
 }
-az_to_num = {c: r for r, c in num_to_az.items()}
+AZ_TO_NUM = {c: r for r, c in NUM_TO_AZ.items()}
 
 current_board = {
     # "A": [],  # A is the row, then the elements+1 in the list will be the column
@@ -44,6 +51,8 @@ current_board = {
 
 
 class BoardData:
+    """ Holds all of the data to define a board """
+
     def __init__(self, rows, columns, outside_size):
         self.num_rows = rows
         self.num_columns = columns
@@ -72,3 +81,20 @@ class BoardData:
                 self.odd_row += "0"
             if num < columns:
                 self.odd_row += ", "
+
+
+def get_middle_coords(start, end):
+    """ takes beginning and end coordinates and returns the middle of the two """
+    middle_row = chr(int((abs(ord(start[0]) + ord(end[0]))) / 2))
+    middle_column = int(abs(int(start[1]) + int(end[1])) / 2)
+
+    middle = middle_row + str(middle_column)
+
+    return middle
+
+
+def coord_to_icon(coord: str):
+    """ gets coordinates and returns the corelating icon """
+    row = current_board[coord[0]]
+    column = int(coord[1]) - 1
+    return row[column]

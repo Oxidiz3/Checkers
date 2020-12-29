@@ -1,13 +1,19 @@
-# TODO: proper double jump logic
+"""
+    Porter Mecham full game of checkers with procedural board lengths
+    complete with jumping and kinging logic.
+"""
+
 import checkers_util as cu
 from checkers_util import BoardData
 
 
-board_data = BoardData(cu.row_length, cu.column_length, cu.grid_length)
+board_data = BoardData(cu.row_length, cu.column_length, cu.GRID_LENGTH)
 
 # Print
 def print_header():
-    print("CHECKER BOARD by\nPorter Mecham\n" + "_" * (cu.grid_length + 1), end="")
+    """print's top of board"""
+
+    print("CHECKER BOARD by\nPorter Mecham\n" + "_" * (cu.GRID_LENGTH + 1), end="")
 
     # if there is two digits then print 2 "_" in between each letter
     # else print 1 digit
@@ -22,17 +28,28 @@ def print_header():
 
 
 def print_footer():
-    print("_" * (cu.grid_length + 1 + (board_data.num_columns * 3)))
+    """print's bottom of board, whose move it is and whether there are any jumps"""
+    print("_" * (cu.GRID_LENGTH + 1 + (board_data.num_columns * 3)))
 
     if len(cu.move_history) != 0:
         print("Last Move:", cu.move_history[-1])
     if cu.whites_turn:
         print("White's Turn")
+
+        if len(cu.w_possible_jumps) > 0:
+            print("You must jump")
+            for jump in cu.w_possible_jumps:
+                print(jump)
     else:
         print("Black's Turn")
+        if len(cu.b_possible_jumps) > 0:
+            for jump in cu.b_possible_jumps:
+                print("You must jump")
+                print(jump)
 
 
 def print_board():
+    """print's the checkerboard """
     board_dict = cu.current_board
 
     print_header()
@@ -51,22 +68,27 @@ def print_board():
 
 # Get Board
 def place_beginning_checkers():
-    new_checker_board = []
-    ri = 0
+    """generates beginning boar
 
-    for row in get_board():
-        ri += 1
+    Returns:
+        Board_Data: returns the starting board
+    """
+    new_checker_board = []
+    r_i = 0
+
+    for row in create_board():
+        r_i += 1
         new_row = ""
 
         # if on top half of the board place white checkers
-        if ri < board_data.num_rows / 2:
+        if r_i < board_data.num_rows / 2:
             for letter in row:
                 if letter == "1":
                     new_row += "w"
                 else:
                     new_row += letter
         # if on bottom half of the board place Black checkers
-        elif ri > (board_data.num_rows / 2) + 1:
+        elif r_i > (board_data.num_rows / 2) + 1:
             for letter in row:
                 if letter == "1":
                     new_row += "b"
@@ -79,45 +101,70 @@ def place_beginning_checkers():
 
         new_checker_board.append(new_row)
 
-    ri = 1
+    r_i = 1
     # put the default board to the current_board dict
     for row in new_checker_board:
-        li = 0
+        l_i = 0
         new_row = []
         # go through each letter
         for letter in row:
             # don't get the Grid on the outside of the board
-            if li > cu.grid_length:
+            if l_i > cu.GRID_LENGTH:
                 # make sure the board is getting only the right icons
                 if letter in board_data.possible_board_icons:
                     new_row.append(letter)
 
-            li += 1
-        cu.current_board[cu.num_to_az[ri]] = new_row
-        ri += 1
+            l_i += 1
+        cu.current_board[cu.NUM_TO_AZ[r_i]] = new_row
+        r_i += 1
 
     return cu.current_board
 
 
-def get_board():
+def create_board():
+    """creates board out of settings in
+        cu
+
+    Returns:
+        list: the finished checkboard
+    """
     checker_board = []
     for row in range(1, board_data.num_rows + 1):
         if row % 2 == 0:
-            checker_board.append(cu.num_to_az[row] + " | " + board_data.even_row + " |")
+            checker_board.append(cu.NUM_TO_AZ[row] + " | " + board_data.even_row + " |")
         else:
-            checker_board.append(cu.num_to_az[row] + " | " + board_data.odd_row + " |")
+            checker_board.append(cu.NUM_TO_AZ[row] + " | " + board_data.odd_row + " |")
 
     return checker_board
 
 
+def look_for_possible_jumps_on_board():
+    """see if any piece on board can jump then put jump in a list"""
+    cu.w_possible_jumps.clear()
+    cu.b_possible_jumps.clear()
+
+    for row in cu.current_board:
+        for col in range(0, cu.column_length - 1):
+            coord = str(row) + str(col)
+            icon = cu.coord_to_icon(coord)
+            if icon in cu.possible_board_pieces:
+                piece_can_jump(coord, icon)
+
+
 # Move
 def get_move():
+    """get move from player(s) """
     print("Example Move: A1,B2")
     _move = input("What is your move\n").upper()
     interpret_move(_move)
 
 
-def interpret_move(_move):
+def interpret_move(_move: str):
+    """take move check if its a valid move then make it do it's logic
+
+    Args:
+        _move (str): move input from get_move()
+    """
     start_pos = _move[0:2]
     end_pos = _move[3:5]
 
@@ -130,7 +177,6 @@ def interpret_move(_move):
         start_col = int(start_pos[1]) - 1
         start_icon = start_row[start_col]
 
-        print(start_icon)
     else:
         print(f"{start_pos} is not in current_board")
         print(cu.current_board)
@@ -149,18 +195,24 @@ def interpret_move(_move):
     if errors_in_move(_move, start_icon, end_icon):
         return
 
-    if not bad_jump(_move, start_col, end_col):
-        return
+    is_jump = move_is_jump(_move)
+    if is_jump:
+        if lawful_jump(_move, start_col, end_col):
+            take_piece(_move)
+        else:
+            return
     do_king_logic(end_pos, start_icon)
 
     # set the first square to blank
     cu.current_board[start_pos[0]][int(start_pos[1]) - 1] = "1"
 
-    if can_jump_piece(end_pos, start_icon):
-        cu.can_jump = True
-        print(end_pos, "can jump a piece")
-    else:
-        cu.can_jump = False
+    # check for double jump
+    if is_jump:
+        if piece_can_jump(end_pos, start_icon):
+            cu.can_jump = True
+            print(end_pos, "can jump a piece")
+        else:
+            cu.can_jump = False
 
     if not cu.can_jump:
         cu.whites_turn = not cu.whites_turn
@@ -171,11 +223,27 @@ def interpret_move(_move):
 
 
 # Error Check
-def valid_icon(icon):
+def valid_icon(icon) -> bool:
+    """check if icon is valid
+
+    Args:
+        icon (str): icon
+
+    Returns:
+        bool: if icon is in possible board icons
+    """
     return icon in board_data.possible_board_icons
 
 
-def possible_piece(icon):
+def possible_piece(icon: str) -> bool:
+    """is icon a checker piece?
+
+    Args:
+        icon (str): piece
+
+    Returns:
+        bool: if icon is a checker piece
+    """
     if icon not in board_data.checkers:
         print(
             f"ERROR: Expected command to give coordinates to {board_data.checkers}, and instead got {icon}"
@@ -185,7 +253,15 @@ def possible_piece(icon):
     return True
 
 
-def errors_in_input(_move):
+def errors_in_input(_move: str) -> bool:
+    """check for errors in input
+
+    Args:
+        _move (str): move from player
+
+    Returns:
+        bool: errors in input
+    """
     if len(_move) != 5:
         if _move.lower() == "print board":
             print_board()
@@ -197,20 +273,31 @@ def errors_in_input(_move):
             return True
     # if there is a letter where there should be a number
     if _move[1].isalpha() or _move[4].isalpha():
-        print(f"ERROR: letter where there should be a number")
+        print("ERROR: letter where there should be a number")
         return True
 
-    if can_jump_piece:
-        if _move not in cu.possible_jumps:
-            print("You must jump with")
-            for jump in cu.possible_jumps:
-                print(jump)
-            return True
+    if piece_can_jump(_move[0:2], cu.coord_to_icon(_move[0:2])):
+        if cu.whites_turn:
+            if _move not in cu.w_possible_jumps:
+                print("You must jump with")
+                for jump in cu.w_possible_jumps:
+                    print(jump)
+                return True
+        else:
+            if _move not in cu.b_possible_jumps:
+                print("You must jump with")
+                for jump in cu.b_possible_jumps:
+                    print(jump)
+                return True
 
     return False
 
 
-def errors_in_move(_move, start_icon, end_icon) -> bool:
+def errors_in_move(_move: str, start_icon: str, end_icon: str) -> bool:
+    """check if move is a valid move
+    Returns:
+        bool: if errors in move
+    """
     if not possible_piece(start_icon):
         print("ERROR: not a valid place to begin your move")
         return True
@@ -260,7 +347,21 @@ def errors_in_move(_move, start_icon, end_icon) -> bool:
 
 
 # Logic
-def bad_jump(_move, start_col, end_col) -> bool:
+def move_is_jump(_move) -> bool:
+    # Make sure jumping to empty space and not over or under jumping
+    jump = False
+
+    r_jump_size = abs(ord(_move[0]) - ord(_move[3]))
+    c_jump_size = abs(int(_move[1]) - int(_move[4]))
+
+    if c_jump_size != 1 or r_jump_size != 1:
+        jump = True
+
+    return jump
+
+
+def lawful_jump(_move, start_col, end_col) -> bool:
+    # Make sure jumping to empty space and not over or under jumping
     jump = False
     middle_row = chr(int((abs(ord(_move[0]) + ord(_move[3]))) / 2))
     middle_column = int(abs(start_col + end_col) / 2)
@@ -283,116 +384,120 @@ def bad_jump(_move, start_col, end_col) -> bool:
 
         jump = True
 
-    #  movement
-    if jump:
-        # Take piece
-        cu.current_board[middle_row][middle_column] = "1"
-
-    return True
+    return jump
 
 
-def can_jump_piece(piece_coordinates, icon) -> bool:
-    possible_jump = False
+def take_piece(_move):
+    start_col = int(_move[1])
+    end_col = int(_move[4])
+
+    # change letters to numbers then get average then return to letter
+    middle_row = chr(int((abs(ord(_move[0]) + ord(_move[3]))) / 2))
+    middle_column = int(abs(start_col + end_col) / 2)
+    cu.current_board[middle_row][middle_column] = "1"
+
+
+def piece_can_jump(piece_coordinates, icon) -> bool:
+    can_jump = False
 
     pos = piece_coordinates
-    row = cu.az_to_num[pos[0]]
+    row = cu.AZ_TO_NUM[pos[0]]
     col = int(pos[1])
 
-    possible_surroundings_coord = []
+    close_coords = []
+    empty_far_coords = []
     jumpable_pieces_coord = []
 
-    # fill out surrounding_pieces if surrounding_pieces[x] == 0 then it should be taken as no piece
-    if row + 2 <= cu.row_length:
-        if col + 2 <= cu.column_length:
-            coord_0 = str(cu.num_to_az[row + 1]) + str(col + 1)
-            jumpable_pieces_coord.append(coord_0)
-            possible_surroundings_coord.append(
-                str(col + 2) + str(cu.num_to_az[row + 2])
-            )
+    if icon == "b" or icon.isupper():
+        if row - 2 > 0:
+            # tile exists
+            if col + 2 <= cu.column_length:
+                tile = str(cu.NUM_TO_AZ[row - 2]) + str(col + 2)
+                # tile is empty
+                if cu.coord_to_icon(tile) == "1":
+                    empty_far_coords.append(tile)
+                else:
+                    empty_far_coords.append(0)
+            else:
+                empty_far_coords.append(0)
+            if col - 2 > 0:
+                tile = str(cu.NUM_TO_AZ[row - 2]) + str(col - 2)
+                # tile is empty
+                if cu.coord_to_icon(tile) == "1":
+                    empty_far_coords.append(tile)
+                else:
+                    empty_far_coords.append(0)
+            else:
+                empty_far_coords.append(0)
+    else:
+        # if it's a white stick in two blanks so it's in the right spot
+        empty_far_coords.append(0)
+        empty_far_coords.append(0)
+
+    if icon == "w" or icon.isupper():
+        if row + 2 <= cu.row_length:
+            # tile exists
+            if col + 2 <= cu.column_length:
+                tile = str(cu.NUM_TO_AZ[row + 2]) + str(col + 2)
+                # tile is empty
+                if cu.coord_to_icon(tile) == "1":
+                    empty_far_coords.append(tile)
+                else:
+                    empty_far_coords.append(0)
+            else:
+                empty_far_coords.append(0)
+            if col - 2 > 0:
+                tile = str(cu.NUM_TO_AZ[row + 2]) + str(col - 2)
+                # tile is empty
+                if cu.coord_to_icon(tile) == "1":
+                    empty_far_coords.append(tile)
+                else:
+                    empty_far_coords.append(0)
+            else:
+                empty_far_coords.append(0)
+
+    # get inside coords
+    for coord in empty_far_coords:
+        if coord != 0:
+            close_coords.append(cu.get_middle_coords(piece_coordinates, coord))
         else:
-            possible_surroundings_coord.append(0)
-        if col - 2 > 0:
-            coord_1 = str(cu.num_to_az[row + 1]) + str(col - 1)
-            jumpable_pieces_coord.append(coord_1)
-            possible_surroundings_coord.append(
-                str(col - 2) + str(cu.num_to_az[row + 2])
-            )
-        else:
-            possible_surroundings_coord.append(0)
-            jumpable_pieces_coord.append(0)
-    if row - 2 > 0:
-        if col - 2 in cu.current_board:
-            coord_2 = str(cu.num_to_az[row - 1]) + str(col - 1)
-            jumpable_pieces_coord.append(coord_2)
-            possible_surroundings_coord.append(
-                str(col - 2) + str(cu.num_to_az[row - 2])
-            )
-        else:
-            jumpable_pieces_coord.append(0)
-            possible_surroundings_coord.append(0)
-        if col + 2 in cu.current_board:
-            coord_3 = str(cu.num_to_az[row - 1]) + str(col + 1)
-            jumpable_pieces_coord.append(coord_3)
-            possible_surroundings_coord.append(
-                str(col - 2) + str(cu.num_to_az[row - 2])
-            )
-        else:
-            jumpable_pieces_coord.append(0)
-            possible_surroundings_coord.append(0)
+            close_coords.append(0)
 
-    print(possible_jump)
-    print(cu.possible_jumps)
+    # check if inside coords are jumpable pieces
+    for index, coord in enumerate(close_coords):
+        x = 0
 
-    # check surroundings for jumpable piece
-    if icon == "w":
-        i = 0
-        for piece_coord in jumpable_pieces_coord[0:1]:
-            if not piece_coord == 0:
-                middle_icon = cu.current_board[piece_coord[0]][int(piece_coord[1])]
+        if coord != 0:
+            coord_icon = cu.coord_to_icon(coord)
+            if icon.lower() == "w":
+                # white attack
+                if coord_icon.lower() == "b":
+                    # have empty space to jump to
+                    if empty_far_coords[index] != 0:
+                        x = coord
+                        can_jump = True
 
-                print("Piece:", piece_coord)
-                if middle_icon == "b" or middle_icon == "B":
-                    cu.possible_jumps.append(
-                        str(pos + "," + possible_surroundings_coord[i])
-                    )
-                    possible_jump = True
-            i += 1
-    elif icon == "W":
-        i = 0
-        for piece_coord in jumpable_pieces_coord[0:3]:
-            if not piece_coord == 0:
-                middle_icon = cu.current_board[piece_coord[0]][int(piece_coord[1])]
+            elif icon.lower() == "b":
+                # black attack
+                if coord_icon.lower() == "w":
+                    # have empty space to jump to
+                    if empty_far_coords[index] != 0:
+                        x = coord
+                        can_jump = True
 
-                if middle_icon == "b" or middle_icon == "B":
-                    cu.possible_jumps.append(
-                        str(pos + "," + possible_surroundings_coord[i])
-                    )
-                    possible_jump = True
-            i += 1
-    if icon == "b":
-        i = 2
-        for piece_coord in possible_surroundings_coord[2:3]:
-            if not piece_coord == 0:
-                middle_icon = cu.current_board[piece_coord[0]][int(piece_coord[1])]
-                if middle_icon == "w" or middle_icon == "W":
-                    cu.possible_jumps.append(
-                        str(pos + "," + possible_surroundings_coord[i])
-                    )
-                    possible_jump = True
-                i += 1
-    elif icon == "B":
-        i = 0
-        for piece_coord in possible_surroundings_coord[0:3]:
-            if not piece_coord == 0:
-                middle_icon = cu.current_board[piece_coord[0]][int(piece_coord[1])]
-                if middle_icon == "w" or middle_icon == "W":
-                    cu.possible_jumps.append(
-                        str(pos + "," + possible_surroundings_coord[i])
-                    )
-                    possible_jump = True
-            i += 1
+        if x != 0:
+            jumpable_pieces_coord.append(x)
 
-    return possible_jump
+            if icon.lower() == "w":
+                cu.w_possible_jumps.append(
+                    str(piece_coordinates + "," + empty_far_coords[index])
+                )
+            else:
+                cu.b_possible_jumps.append(
+                    str(piece_coordinates + "," + empty_far_coords[index])
+                )
+
+    return can_jump
 
 
 def do_king_logic(second_move, start_icon):
@@ -438,6 +543,7 @@ if __name__ == "__main__":
     # initialize
     cu.current_board = place_beginning_checkers()
     while not cu.game_over:
+        look_for_possible_jumps_on_board()
         print_board()
         get_move()
         if not cu.game_over:
